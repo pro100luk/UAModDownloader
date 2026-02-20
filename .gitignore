@@ -1,0 +1,6 @@
+cmake-build-switch
+.vscode
+build
+.xmake
+build
+.idea

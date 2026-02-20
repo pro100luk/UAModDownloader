@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<brls:Box
+    width="auto"
+    height="auto"
+    axis="column"
+    grow="1.0">
+
+    <!-- Spinner wrapper, centered, hidden after load -->
+    <brls:Box
+        id="loading_spinner"
+        width="auto"
+        height="auto"
+        axis="column"
+        grow="1.0"
+        justifyContent="center"
+        alignItems="center">
+
+        <brls:ProgressSpinner
+            width="240"
+            height="240"/>
+
+    </brls:Box>
+
+    <brls:RecyclerFrame
+        id="recycler"
+        width="auto"
+        height="auto"
+        grow="1.0"
+        visibility="gone"
+        marginTop="20"/>
+
+</brls:Box>

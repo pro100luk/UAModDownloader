@@ -1,0 +1,99 @@
+{
+    "main": {
+        "app_name": "UAModDownloader"
+    },
+
+    "title": {
+        "downloading_smm": "Завантажую UAModDownloader",
+        "downloading_smd": "Завантажую UAModDownloader",
+        "downloading": "Завантаження",
+        "extracting": "Розпакування"
+    },
+    
+    "tabs": {
+        "downloads": "Cписок ігор",
+        "install": "Доступні на SWUK",
+        "update": "Оновити додаток",
+        "about": "Про додаток",
+        "settings": "Налаштування"
+    },
+    
+    "notify": {
+   "no_games_swuk": "У базі даних SWUK не знайдено жодної гри",
+    "not_supported": "Цей формат не підтримується: ",
+    "string_to_short": "Пошуковий запит має містити щонайменше 3 символи",
+    "mod_unsupported": "Цей мод не підтримується UAModDownloader",
+    "smash_bros": "Super Smash Bros. Ultimate використовує менеджер модів ARCropolis. UAModDownloader підтримує його; не використовуйте SimpleModManager для встановлення цього мода",
+    "request_error": "Сталася помилка під час запиту списку модів. Будь ласка, перевірте підключення до інтернету та спробуйте ще раз. Якщо проблема не зникне, змініть параметр суворого пошуку в налаштуваннях."
+    },
+    
+    "worker": {
+        "of": "з",
+        "cancel": "Скасувати",
+        "install": "Встановлюю",
+        "remaining": "Залишилося"
+    },
+    
+    "about": {
+        "title": "UAModDownloader",
+        "description": "Автоматичний завантажувач модифікацій для Nintendo Switch.",
+        "thanks": "\u25c6 Подяка @PoloNX. Саме його розробку SimpleModDownloader, я використав як основу для цього додатку.\n\u25c6 Vitalii_Popovych за портал swuk.com.ua, звідки беруться переклади.",
+        "translator": "Знайдені помилки та пропозиції щодо покращення роботи додатку можете залишати в нашому Discord сервері - \"Swith українською\" - https://discord.gg/VNVUQzAD9y",
+        "_MESSAGE_TO_TRANSLATORS": "Put your name in about/translator please"
+    },
+    
+    "label": {
+        "no_games": "На Switch не знайдено жодної гри",
+        "install": "Встановлення",
+        "desc_install": "Щоб встановити моди, вам потрібно скористатися додатком UAModDownloader від @nadrino.",
+        "extract": "Видобування завершено. Щоб встановити мод, перейдіть на вкладку «Встановлення».",
+        "update": "Оновити додаток",
+        "new_update": "\u25c6 Поточна версія:",
+        "available_version" : "\u25c6 Доступна версія:",
+        "restart_smd": "Перезапустіть UAModDownloader, щоб оновлення запрацювали.",
+        "no_internet": "Немає з’єднання з інтернетом.",
+        "desc_smd": "\u25c6 Ви можете оновити додаток, який використовуєте на своєму Switch",
+        "path": "Шлях",
+        "url": "URL-адреса"
+    },
+    
+    "item": {
+        "launch_smm": "Запустити UAModDownloader",
+        "download_smm": "Завантажити UAModDownloader",
+        "download_smd": "Завантажити UAModDownloader",
+        "check_update": "Перевірити наявність оновлень"
+    },
+    
+    "mods": {
+        "mods_list_title": "Перелік модів",
+        "search": "Пошук",
+        "search_placeholder": "Enter the mod name (minimum 3 characters)",
+        "cancel": "Скасувати",
+        "links": "Посилання на завантаження",
+        "size": "Розмір",
+        "date": "Дата",
+        "screenshots" : "Знятки",
+        "description": "Інформація",
+        "browser": "Відкрити у браузері",
+        "author": "Автор/-и",
+        "ported_by": "Портовано",
+        "page": "Сторінка",
+        "download": "Завантажити",
+        "to": "до",
+        "mods_for": " Знайдено модів для",
+        "files": "Файли",
+        "categories": "Категорії"
+    },
+
+    "settings_tab" : {
+        "language" : "Select language",
+        "debug" : "Debug layer",
+        "strict": "Шукати точну відповідність назві гри"
+    },
+
+    "crash" : {
+        "sd_full" : "SD-карта заповнена. Будь ласка, звільніть місце та перезапустіть додаток."    },
+    "general" : {
+        "ok" : "Гаразд"
+    }
+}
