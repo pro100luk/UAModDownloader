@@ -4,7 +4,6 @@
 #include "api/net.hpp"
 #include "utils/config.hpp"
 
-
 #include <borealis.hpp>
 
 using namespace brls::literals;
@@ -48,21 +47,16 @@ brls::RecyclerCell* ModData::cellForRow(brls::RecyclerFrame* recycler, brls::Ind
 }
 
 void ModData::didSelectRowAt(brls::RecyclerFrame* recycler, brls::IndexPath indexPath)
-{ 
+{
     brls::Logger::debug("Mod name : {}", modList->getMods()[indexPath.row].getName());
-    recycler->present(new ModPreview(modList->getMods()[indexPath.row], bannerBuffer));
-    
-    //recycler->present(new ModPreview(modList->getMods()[indexPath.row]));
+    recycler->present(new ModPreview(modList->getMods()[indexPath.row], bannerBuffer, readOnly));
 }
 
-ModData::ModData(Game game): game(game)
+ModData::ModData(Game game, bool readOnly): game(game), readOnly(readOnly)
 {
-    //modList = new ModList(game);
     modList = std::make_unique<ModList>(game);
     net::downloadImage(game.getBannerUrl(), bannerBuffer);
     brls::Logger::debug("{} mods found", modList->getMods().size());
-
-
 }
 
 int ModData::numberOfSections(brls::RecyclerFrame* recycler)
@@ -80,10 +74,10 @@ std::string ModData::titleForHeader(brls::RecyclerFrame* recycler, int section)
     return "";
 }
 
-ModListTab::ModListTab(Game& game) {
+ModListTab::ModListTab(Game& game, bool readOnly) {
     this->inflateFromXMLRes("xml/tabs/mods.xml");
 
-    modData = std::make_unique<ModData>(game);
+    modData = std::make_unique<ModData>(game, readOnly);
     getAppletFrameItem()->title = fmt::format("{} {}", "menu/mods/mods_for"_i18n, game.getTitle());
 
     this->registerAction("<", brls::ControllerButton::BUTTON_LB, [this](brls::View* view){
@@ -117,7 +111,6 @@ ModListTab::ModListTab(Game& game) {
         return true;
     });
 
-    
     this->registerAction("menu/mods/categories"_i18n, brls::ControllerButton::BUTTON_X, [this, game](brls::View* view) mutable {
         brls::Logger::debug("Filters button pressed");
         int selected = this->modData->getModList()->getCategory().getIndex();
@@ -150,18 +143,4 @@ ModListTab::ModListTab(Game& game) {
         }
     }
     #endif
-
-    //BUG : The focus is badly given
-    // if (game.getGamebananaID() == 6498) {
-    //     auto dialog = new brls::Dialog("menu/notify/smash_bros"_i18n);
-    //     dialog->addButton("hints/ok"_i18n, [this]() {});
-    //     dialog->open();
-    //     dialog->
-    //     //brls::Application::giveFocus(dialog);
-    // }
-
 }
-
-/*brls::View* ModListTab::create() {
-    return new ModListTab();
-}*/

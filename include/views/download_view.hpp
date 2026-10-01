@@ -1,6 +1,7 @@
 #pragma once
 
 #include <borealis.hpp>
+#include <atomic>
 
 #include "api/mod.hpp"
 
@@ -20,6 +21,7 @@ private:
     BRLS_BIND(brls::ProgressSpinner, download_spinner, "download_spinner");
     BRLS_BIND(brls::Label, download_percent, "download_percent");
     BRLS_BIND(brls::Slider, download_progressBar, "download_progressBar");
+    BRLS_BIND(brls::Label, file_size_text, "file_size_text");
 
     BRLS_BIND(brls::Label, extract_text, "extract_text");
     BRLS_BIND(brls::ProgressSpinner, extract_spinner, "extract_spinner");
@@ -34,6 +36,10 @@ private:
     std::mutex threadMutex;
     std::condition_variable threadCondition;
 
-    bool downloadFinished = false;
-    bool extractFinished = false;
+    std::atomic<bool> downloadFinished{false};
+    std::atomic<bool> extractFinished{false};
+    std::atomic<bool> cancelRequested{false};
+    std::atomic<bool> installSuccess{false};
+
+    void cancelDownload();
 };

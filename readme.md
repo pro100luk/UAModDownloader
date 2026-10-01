@@ -1,5 +1,5 @@
 <div align="center">
-    <h1>SimpleModDownloader</h1>
+    <h1>UAModDownloader</h1>
     <p>A switch homebrew which downloads mods from gamebanana</p>
 </div>
 

@@ -1,16 +1,51 @@
 <brls:Box
     width="auto"
     height="auto"
-    axis="column">
+    axis="column"
+    grow="1.0">
+
+    <!-- Spinner wrapper centers the icon without affecting recycler layout -->
+    <brls:Box
+        id="loading_spinner"
+        width="auto"
+        height="auto"
+        axis="column"
+        grow="1.0"
+        justifyContent="center"
+        alignItems="center">
+
+        <brls:ProgressSpinner
+            width="240"
+            height="240"/>
+
+    </brls:Box>
+
+    <brls:Box
+        id="no_internet_box"
+        width="auto"
+        height="auto"
+        axis="column"
+        grow="1.0"
+        visibility="gone"
+        justifyContent="center"
+        alignItems="center">
+
+        <brls:Label
+            id="no_internet_label"
+            text="@i18n/menu/label/no_internet_retry"
+            horizontalAlign="center"/>
+
+    </brls:Box>
 
     <brls:RecyclerFrame
         id="recycler"
         width="auto"
         height="auto"
         grow="1.0"
+        visibility="gone"
         paddingTop="@style/brls/sidebar/padding_top"
         paddingRight="@style/brls/sidebar/padding_right"
         paddingBottom="@style/brls/sidebar/padding_bottom"
-        paddingLeft="@style/brls/sidebar/padding_left"/>
+        paddingLeft="20"/>
 
 </brls:Box>

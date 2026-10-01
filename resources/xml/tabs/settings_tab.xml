@@ -20,9 +20,6 @@
             paddingRight="@style/brls/sidebar/padding_right"
             paddingBottom="@style/brls/sidebar/padding_bottom"
             paddingLeft="@style/brls/sidebar/padding_left">
-
-            <brls:SelectorCell
-                id="language_selector"/>
             
             <brls:BooleanCell
                 id="strict_cell"/>

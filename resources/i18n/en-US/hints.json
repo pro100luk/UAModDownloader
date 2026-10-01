@@ -1,14 +1,14 @@
 {
-    "ok": "OK",
-    "cancel": "Cancel",
-    "back": "Back",
-    "exit": "Exit",
-    "exit_hint": "You will exit this app",
-    "open": "Open",
-    "on": "On",
-    "off": "Off",
-    "delete": "Delete",
-    "save": "Save",
-    "input": "Please input...",
-    "submit": "Submit"
-  }
+    "ok": "Вибрати",
+    "cancel": "Скасувати",
+    "back": "Назад",
+    "exit": "Вийти",
+    "exit_hint": "Бажаєте вийти з додатку?",
+    "open": "Відкрити",
+    "on": "Увімк.",
+    "off": "Вимк.",
+    "delete": "Видалити",
+    "save": "Зберегти",
+    "input": "Будь ласка, введіть...",
+    "submit": "Підтвердити"
+}

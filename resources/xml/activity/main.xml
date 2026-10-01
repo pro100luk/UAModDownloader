@@ -14,12 +14,6 @@
             <InstallationTab/>
         </brls:Tab>
 
-        <brls:Separator/>
-
-        <brls:Tab label ="@i18n/menu/tabs/settings">
-            <SettingsTab/>
-        </brls:Tab>
-
         <brls:Tab label="@i18n/menu/tabs/about">
             <brls:Box
                 width="auto"
@@ -39,20 +33,28 @@
                     <brls:Label
                         width="auto"
                         height="auto"
-                        fontSize="35"
+                        fontSize="20"
                         horizontalAlign="center"
                         text="@i18n/menu/main/app_name"/>
 
+                    <brls:Label
+                        id="version_label"
+                        width="auto"
+                        height="auto"
+                        fontSize="15"
+                        horizontalAlign="center"
+                        marginTop="5"/>
+
                     <brls:Image
                         width="auto"
-                        height="33%"
+                        height="25%"
                         image="@res/icon/icon.png"
                         cornerRadius="15"
                         marginTop="@style/about/description_margin"
                         marginBottom="@style/about/description_margin"/>
 
                     <brls:Label
-                        fontSize="15"
+                        fontSize="18"
                         width="auto"
                         height="auto"
                         singleLine="false"
@@ -71,7 +73,7 @@
                     <brls:Label
                         width="auto"
                         height="auto"
-                        fontSize="12"
+                        fontSize="18"
                         singleLine="false"
                         text="@i18n/menu/about/thanks"
                         grow="1.0"/>
@@ -79,7 +81,7 @@
                     <brls:Label
                         width="auto"
                         height="auto"
-                        fontSize="12"
+                        fontSize="15"
                         text="@i18n/menu/about/translator"
                         singleLine="false"/>
 

@@ -1,3 +1,4 @@
 {
-    "language": "auto"
+  "is_strict": true,
+  "wireframe": false
 }

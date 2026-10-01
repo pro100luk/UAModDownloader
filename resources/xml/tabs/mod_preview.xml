@@ -5,7 +5,8 @@
         id="mod_preview_scrolling"
         width="auto"
         height="auto"
-        grow="1.0">
+        grow="1.0"
+        focusable="true">
     
         <brls:Box
             width="100%"
@@ -45,6 +46,7 @@
                     fontSize="50"
                     width="auto"
                     height="auto"
+                    focusable="false"
                     horizontalAlign="center"
                     marginTop="10px"/>
             </brls:Box>
@@ -137,6 +139,7 @@
                     singleLine="false"/>    
 
                 <brls:Header
+                    id="files_header"
                     width="100%"
                     height="auto"
                     title="@i18n/menu/mods/files"

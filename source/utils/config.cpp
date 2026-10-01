@@ -7,17 +7,16 @@
 
 #include <borealis.hpp>
 
-bool cp(char *filein, const char *fileout) {
+bool cp(const char *filein, const char *fileout) {
     FILE *exein, *exeout;
     exein = fopen(filein, "rb");
     if (exein == NULL) {
-        /* handle error */
         perror("file open for reading");
         return false;
     }
     exeout = fopen(fileout, "wb");
     if (exeout == NULL) {
-        /* handle error */
+        fclose(exein);
         perror("file open for writing");
         return false;
     }
@@ -51,51 +50,57 @@ namespace cfg {
     }
 
     void Config::loadConfig() {
-        if(!std::filesystem::exists("sdmc:/config/SimpleModDownloader/settings.json")) {
+        const char* configPath = "sdmc:/config/UAModDownloader/settings.json";
+        
+        if(!std::filesystem::exists(configPath)) {
             chdir("sdmc:/");
-            std::filesystem::create_directories("sdmc:/config/SimpleModDownloader/");
-            cp("romfs:/json/settings.json","sdmc:/config/SimpleModDownloader/settings.json");
+            std::filesystem::create_directories("sdmc:/config/UAModDownloader/");
+            cp("romfs:/json/settings.json", configPath);
         }
 
-        std::ifstream file("sdmc:/config/SimpleModDownloader/settings.json"); //No is open because it is created if it doesn't exist
+        std::ifstream file(configPath);
+        if (!file.is_open()) {
+            brls::Logger::error("Failed to open config file: {}", configPath);
+            config = nlohmann::json::object();
+            return;
+        }
+        
         config = nlohmann::json::parse(file);
         file.close();
     }
 
     void Config::parseConfig() {
         try {
-            app_language = config.contains("language") ? config["language"].get<std::string>() : "en-US";
+            // REMOVED: app_language parsing
             is_strict = config.contains("is_strict") ? config["is_strict"].get<bool>() : true;
             wireframe = config.contains("wireframe") ? config["wireframe"].get<bool>() : false;
         } catch (const std::exception& e) {
             brls::Logger::error("Error parsing config: {}", e.what());
-            app_language = "en-US";
             is_strict = true;
             wireframe = false;
         }
     }
 
-    std::string Config::getAppLanguage() {
-        return app_language;
-    }
-
-    void Config::setAppLanguage(const std::string& app_language) {
-        this->app_language = app_language;
-    }
+    // REMOVED: getAppLanguage() and setAppLanguage()
 
     bool Config::getStrictSearch() {
         return this->is_strict;
     }
+    
     void Config::setStringSearch(bool strict) {
         this->is_strict = strict;
     }
 
+    void Config::setWireframe(bool wireframeEnabled) {
+        this->wireframe = wireframeEnabled;
+    }
+
     void Config::saveConfig() {
-        this->config["language"] = app_language;
+        // REMOVED: language saving
         this->config["is_strict"] = is_strict;
         this->config["wireframe"] = wireframe;
 
-        std::ofstream file("sdmc:/config/SimpleModDownloader/settings.json");
+        std::ofstream file("sdmc:/config/UAModDownloader/settings.json");
         file << this->config.dump(4);
         file.close();
     }

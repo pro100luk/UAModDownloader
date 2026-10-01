@@ -12,6 +12,12 @@
         id="download_text"
         margin="10"/>
 
+    <brls:Label
+        width="auto"
+        height="30"
+        id="file_size_text"
+        margin="10"/>
+
     <brls:Box
         width="auto"
         height="auto"

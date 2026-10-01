@@ -1,187 +1,169 @@
 #include "api/extract.hpp"
 #include "utils/progress_event.hpp"
-
 #include <archive.h>
 #include <archive_entry.h>
 #include <filesystem>
-#include <fstream>
+#include <cstdio>
 #include <switch.h>
 #include <borealis.hpp>
+#include <unistd.h>
 
-const std::string smash_tid = "01006A800016E000";
+namespace fs = std::filesystem;
 
 namespace extract {
+
+    // Допоміжна функція для повного видалення
+    void forceDelete(const std::string& path) {
+        std::error_code ec;
+        if (!fs::exists(path)) return;
+        
+        fs::remove_all(path, ec);
+        if (fs::exists(path)) {
+            // Якщо не видалилося, пробуємо rmdir (тільки для порожніх папок)
+            rmdir(path.c_str());
+        }
+    }
+
+    std::string findModRoot(const std::string& startPath) {
+        try {
+            if (!fs::exists(startPath)) return "";
+            for (const auto& entry : fs::recursive_directory_iterator(startPath)) {
+                if (entry.is_directory()) {
+                    std::string name = entry.path().filename().string();
+                    if (name == "romfs" || name == "exefs") return entry.path().parent_path().string();
+                }
+            }
+        } catch (...) { }
+        return "";
+    }
+
     int getFileCount(const std::string& archivePath) {
-        struct archive* archive;
+        struct archive* a = archive_read_new();
         struct archive_entry* entry;
-        int fileCount = 0;
-
-        archive = archive_read_new();
-        archive_read_support_format_all(archive);
-        archive_read_support_filter_all(archive);
-
-        if(archive_read_open_filename(archive, archivePath.c_str(), 10240) == ARCHIVE_OK) {
-            while(archive_read_next_header(archive, &entry) == ARCHIVE_OK) {
-                fileCount++;
-            }
-            archive_read_close(archive);
+        int count = 0;
+        archive_read_support_format_all(a);
+        archive_read_support_filter_all(a);
+        if (archive_read_open_filename(a, archivePath.c_str(), 10240) == ARCHIVE_OK) {
+            while (archive_read_next_header(a, &entry) == ARCHIVE_OK) count++;
+            archive_read_close(a);
         }
-
-        archive_read_free(archive);
-        return fileCount;
+        archive_read_free(a);
+        return count;
     }
 
-    s64 getTotalArchiveSize(const std::string& archivePath) {
-        struct archive* archive;
-        struct archive_entry* entry;
-        s64 totalSize = 0;
+    bool extractEntry(const std::string& archiveFile, const std::string& outputDir, const std::string& tid) {
+        brls::Logger::info("extract: starting for TID: {}", tid);
 
-        archive = archive_read_new();
-        archive_read_support_format_all(archive);
-        archive_read_support_filter_all(archive);
+        std::string baseDir = "sdmc:/config/UAModDownloader";
+        std::string tempDir = baseDir + "/temp_" + tid;
+        std::string atmospherePath = "sdmc:/atmosphere/contents/" + tid;
+        std::error_code ec;
 
-        if(archive_read_open_filename(archive, archivePath.c_str(), 10240) == ARCHIVE_OK) {
-            while(archive_read_next_header(archive, &entry) == ARCHIVE_OK) {
-                totalSize += archive_entry_size(entry);
+        try {
+            // --- CLEANUP OLD TEMP DIRS ---
+            for (const auto& entry : fs::directory_iterator(baseDir, ec)) {
+                std::string name = entry.path().filename().string();
+                if (name.find("temp_") == 0 || name.find(".garbage_") == 0)
+                    fs::remove_all(entry.path(), ec);
             }
-            archive_read_close(archive);
-        }
 
-        archive_read_free(archive);
-        return totalSize;
-    }
+            fs::create_directories(tempDir, ec);
+            brls::Logger::info("extract: tempDir created: {}", tempDir);
 
-bool extractEntry(const std::string& archiveFile, const std::string& outputDir, const std::string& tid) {
-        chdir("sdmc:/");
-        struct archive* archive = archive_read_new();
+            int totalFiles = getFileCount(archiveFile);
+            brls::Logger::info("extract: archive contains {} entries", totalFiles);
+            ProgressEvent::instance().setTotalSteps(totalFiles);
 
-        brls::Logger::debug("Extracting {} to {}", archiveFile, outputDir);
+            // --- EXTRACT ---
+            struct archive* a = archive_read_new();
+            archive_read_support_format_all(a);
+            archive_read_support_filter_all(a);
 
-        archive_read_support_format_all(archive);
-        int result = archive_read_open_filename(archive, archiveFile.c_str(), 10240);
-        if (result != ARCHIVE_OK) {
-            brls::Logger::error("Failed to open archive: {}", archiveFile);
-            archive_read_free(archive);
-            //std::filesystem::remove(archiveFile);
-            ProgressEvent::instance().setStep(ProgressEvent::instance().getMax());
-            return false;
-        }
-        struct archive_entry* entry;
-        ProgressEvent::instance().setTotalSteps(getFileCount(archiveFile));
-        ProgressEvent::instance().setStep(0);
-
-        s64 freeStorage;
-        if(R_SUCCEEDED(nsGetFreeSpaceSize(NcmStorageId_SdCard, &freeStorage)) && getTotalArchiveSize(archiveFile) * 1.1 > freeStorage) {
-            brls::Logger::error("sd is full");
-            archive_read_free(archive);
-            std::filesystem::remove(archiveFile);
-            ProgressEvent::instance().setStep(ProgressEvent::instance().getMax());
-            brls::Application::crash("full");
-            std::this_thread::sleep_for(std::chrono::microseconds(2000000));
-            brls::Application::quit();
-            return false;
-        }
-
-        while (archive_read_next_header(archive, &entry) == ARCHIVE_OK) {
-            if (ProgressEvent::instance().getInterupt()) {
-                archive_read_close(archive);
-                archive_read_free(archive);
-                std::filesystem::remove(archiveFile);
-                ProgressEvent::instance().setStep(ProgressEvent::instance().getMax());
+            if (archive_read_open_filename(a, archiveFile.c_str(), 10240) != ARCHIVE_OK) {
+                brls::Logger::error("extract: failed to open archive: {}", archive_error_string(a));
+                archive_read_free(a);
                 return false;
             }
-            const char* entryName = archive_entry_pathname(entry);
-            
-            if ((tid != smash_tid)) {
-                if (std::string(entryName).find("romfs/") != std::string::npos || std::string(entryName).find("exefs/") != std::string::npos || std::string(entryName).find("exefs_patches/") != std::string::npos) {
-                    
-                    std::string outputFilePath;
 
+            struct archive_entry* entry;
+            while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
+                if (ProgressEvent::instance().getInterupt()) break;
 
-                    if (std::string(entryName).find("romfs/") != std::string::npos) //romfs
-                        outputFilePath = fmt::format("{}/contents/{}/{}", outputDir, tid, std::string(entryName).substr(std::string(entryName).find("romfs/")));
-                    else if (std::string(entryName).find("exefs_patches/") != std::string::npos)//exefs_patches
-                        outputFilePath = fmt::format("{}/{}", outputDir, std::string(entryName).substr(std::string(entryName).find("exefs_patches/")));
-                    else //Exefs
-                        outputFilePath = fmt::format("{}/contents/{}/{}", outputDir, tid, std::string(entryName).substr(std::string(entryName).find("exefs/")));
+                std::string entryName = archive_entry_pathname(entry);
+                brls::Logger::debug("extract: entry: {}", entryName);
+                fs::path outputPath = fs::path(tempDir) / entryName;
 
-                    if (std::string(entryName).find("|") != std::string::npos)
-                        outputFilePath = outputFilePath.substr(0, outputFilePath.find("|"));
-                  
-                    brls::Logger::debug("Extracting file {} to {}", entryName,outputFilePath);
-                    std::filesystem::path outputPath(outputFilePath);
-                    std::filesystem::create_directories(outputPath.parent_path());
-
-                    if (archive_entry_filetype(entry) == AE_IFDIR) {
-                        ProgressEvent::instance().incrementStep(1);
-                        // Skip directories
-                        continue;
-                    }
-
-
-                    std::ofstream outputFile(outputFilePath, std::ios::binary);
-                    if (!outputFile) {
-                        brls::Logger::error("Failed to create output file: {}", outputFilePath);
-                        archive_read_free(archive);
-                        std::filesystem::remove(archiveFile);
-                        ProgressEvent::instance().setStep(ProgressEvent::instance().getMax());
-                        return false;
-                    }
-
-                    const size_t bufferSize = 100000;
-                    char buffer[bufferSize];
-                    ssize_t bytesRead;
-                    while ((bytesRead = archive_read_data(archive, buffer, bufferSize)) > 0) {
-                        outputFile.write(buffer, bytesRead);
-                    }
-
-                    outputFile.close();
-
-                    ProgressEvent::instance().incrementStep(1);
-                } else {
-                    brls::Logger::debug("Skipping {}", entryName);
-                }
-            } else {
-                // Smash bros mods
-                std::string outputFilePath = fmt::format("sdmc:/ultimate/mods/{}",std::string(entryName));
-                std::filesystem::path outputPath(outputFilePath);
-                std::filesystem::create_directories(outputPath.parent_path());
                 if (archive_entry_filetype(entry) == AE_IFDIR) {
-                    // Create the directory
-                    if (!std::filesystem::create_directory(outputPath)) {
-                        brls::Logger::error("Failed to create directory: {}", outputFilePath);
+                    fs::create_directories(outputPath, ec);
+                } else {
+                    fs::create_directories(outputPath.parent_path(), ec);
+                    FILE* outFile = fopen(outputPath.c_str(), "wb");
+                    if (outFile) {
+                        const void* buff;
+                        size_t size;
+                        la_int64_t offset;
+                        while (archive_read_data_block(a, &buff, &size, &offset) == ARCHIVE_OK)
+                            fwrite(buff, 1, size, outFile);
+                        fclose(outFile);
+                    } else {
+                        brls::Logger::error("extract: failed to open output file: {}", outputPath.string());
                     }
-                    ProgressEvent::instance().incrementStep(1);
-                    continue;
                 }
-
-                std::ofstream outputFile(outputFilePath, std::ios::binary);
-                if (!outputFile) {
-                    brls::Logger::error("Failed to create output file: {}", outputFilePath);
-                    archive_read_free(archive);
-                    std::filesystem::remove(archiveFile);
-                    ProgressEvent::instance().setStep(ProgressEvent::instance().getMax());
-                    return false;
-                }
-
-                const size_t bufferSize = 100000;
-                char buffer[bufferSize];
-                ssize_t bytesRead;
-                while ((bytesRead = archive_read_data(archive, buffer, bufferSize)) > 0) {
-                    outputFile.write(buffer, bytesRead);
-                }
-
-                outputFile.close();
-
-                brls::Logger::debug("Extracted file: {}", outputFilePath);
                 ProgressEvent::instance().incrementStep(1);
             }
-        }
+            archive_read_close(a);
+            archive_read_free(a);
+            brls::Logger::info("extract: archive extraction complete");
 
-        archive_read_close(archive);
-        archive_read_free(archive);
-        std::filesystem::remove(archiveFile);
-        ProgressEvent::instance().setStep(ProgressEvent::instance().getMax());
-        return true;
+            // --- INSTALL ---
+            std::string modRoot = findModRoot(tempDir);
+            brls::Logger::info("extract: modRoot: '{}'", modRoot);
+
+            if (!modRoot.empty()) {
+                fs::create_directories(atmospherePath, ec);
+                brls::Logger::info("extract: installing to: {}", atmospherePath);
+
+                for (const auto& item : fs::directory_iterator(modRoot, ec)) {
+                    std::string itemName = item.path().filename().string();
+                    fs::path dest = fs::path(atmospherePath) / itemName;
+                    brls::Logger::info("extract: moving {} -> {}", item.path().string(), dest.string());
+
+                    if (fs::exists(dest, ec)) {
+                        std::string old = dest.string() + ".old";
+                        fs::remove_all(old, ec);
+                        fs::rename(dest, old, ec);
+                        brls::Logger::info("extract: backed up existing {} to .old", itemName);
+                        fs::remove_all(old, ec);
+                    }
+                    fs::rename(item.path(), dest, ec);
+                    if (ec) {
+                        brls::Logger::error("extract: rename failed for {}: {}", itemName, ec.message());
+                    }
+                }
+            } else {
+                brls::Logger::error("extract: modRoot not found in tempDir");
+            }
+
+            // --- CLEANUP ---
+            if (fs::exists(archiveFile, ec)) fs::remove(archiveFile, ec);
+
+            if (fs::exists(tempDir, ec)) {
+                std::string garbage = baseDir + "/.garbage_" + tid;
+                fs::remove_all(garbage, ec);
+                fs::rename(tempDir, garbage, ec);
+                forceDelete(garbage);
+            }
+
+            brls::Logger::info("extract: done");
+            ProgressEvent::instance().setStep(ProgressEvent::instance().getMax());
+            return true;
+
+        } catch (const std::exception& e) {
+            brls::Logger::error("extract: exception: {}", e.what());
+            return false;
+        } catch (...) {
+            brls::Logger::error("extract: unknown exception");
+            return false;
+        }
     }
 }

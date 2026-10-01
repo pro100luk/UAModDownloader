@@ -18,10 +18,11 @@ class FileBox : public brls::Box {
 
 class ModPreview : public brls::Box {
 public:
-    ModPreview(Mod& mod, std::vector<unsigned char>& bannerBuffer);
+    ModPreview(Mod& mod, std::vector<unsigned char>& bannerBuffer, bool readOnly = false);
     ~ModPreview();
 private:
     Mod mod;
+    bool readOnly;
 
     BRLS_BIND(brls::Rectangle, image_overlay, "image_overlay");
     BRLS_BIND(brls::Label, title, "mod_preview_title");
@@ -37,15 +38,14 @@ private:
     std::vector<brls::Box*> smallScreenshotsBoxs;
 
     void loadImages();
-    bool shouldStopThread();
-    void processImageOnMainThread(size_t index, std::vector<unsigned char>& buffer);
-
     void loadButtons();
+    void validateAndDownload(File& file);
+    bool shouldStopThread();
     void stopThread();
+
     std::thread secondThread;
     std::mutex threadMutex;
     std::condition_variable threadCondition;
-    
     std::mutex bigImageMutex;
 
     const int bigImageWidth = 1000;

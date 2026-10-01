@@ -8,8 +8,10 @@
 
 class File {
     public:
-        File(const std::string &name, const int &size, const std::string &url, const std::string &checkSum, const std::string& modName, const int& date, const std::string& fileID,const Game& game);
+        File(const std::string &name, const int &size, const std::string &url, const std::string &checkSum, const std::string& modName, const int& date, const std::string& fileID, const Game& game);
         void loadFile();
+        
+        // Getters
         std::string getPath() { return path; }
         std::string getName() { return name; }
         std::string getUrl() { return url; }
@@ -19,6 +21,16 @@ class File {
         Game getGame() { return game; }
         std::string getModName() { return modName; }
         bool getRomfs() { return romfs; }
+        std::string getFileID() { return fileID; }
+        
+        // Version getters and setters
+        std::string getGameVersion() { return game_version; }
+        std::string getTranslationVersion() { return translation_version; }
+        void setGameVersion(const std::string& ver) { game_version = ver; }
+        void setTranslationVersion(const std::string& ver) { translation_version = ver; }
+
+        // Keeping this public as per your custom mod requirements
+        bool romfs = false; 
 
     private:
         bool findRomfsRecursive(const nlohmann::json& obj);
@@ -32,7 +44,10 @@ class File {
         const Game& game;
         std::string modName;
         std::string fileID;
-        bool romfs = false;
+        
+        // Version information for custom mods
+        std::string game_version;
+        std::string translation_version;
 };
 
 class Mod {
@@ -42,10 +57,12 @@ class Mod {
         brls::Image* getImage(const int& index);
         std::vector<unsigned char> getImageBuffer(const int& index) { return imageBuffers[index]; }
 
-        //Separate the download and load image functions because borealis isn't thread safe, loadImage must be called from the main thread
+        // UI handling
         std::vector<unsigned char> downloadImage(const int& index);
         void loadImage(const int& index);
 
+        // Standard Getters
+        const Game& getGame() const { return this->game; }
         std::string getName() { return name; }
         int getID() { return ID; }
         std::string getDescription() { return description; }
@@ -54,27 +71,33 @@ class Mod {
         std::string getAuthor() { return author; }
 
         void loadMod();
+        
+        // --- PUBLIC MEMBERS FOR CUSTOM MOD DATA ---
+        // These need to be public so ModList can populate them and ModPreview can read them
+        std::string description;           
+        std::vector<File> files;             
+        std::vector<std::string> imageUrls; 
+        std::string author_id;
+        std::string port_author;
+        std::string game_version;
+        
     private:
         std::string name;
         int ID = 0;
-        std::string description;
-        std::vector<File> files;
-
-        std::vector<std::string> imageUrls;
+        std::string author;
+        const Game& game;
 
         std::vector<brls::Image*> images;
         std::vector<std::vector<unsigned char>> imageBuffers;
-
         std::vector<unsigned char> imageBuffer;
-        std::string author;
 
-        const Game& game;
+        // Allows ModList to handle the "custom loading" logic safely
+        friend class ModList;
 };  
 
 class ModList {
     public:
         ModList(Game game);
-        //ModList();
         std::vector<Mod> getMods() { return mods; }
 
         void nextPage();
@@ -83,6 +106,7 @@ class ModList {
         void setCategory(const Category& category);
 
         Category getCategory() {return currentCategory;}
+        
     private:
         void updatePage();
         

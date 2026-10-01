@@ -1,27 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
 <brls:Box
     width="auto"
     height="auto"
     axis="column"
-    alignItems="center">
+    grow="1.0">
 
-    <brls:Label
-        text="@i18n/menu/tabs/install"
-        fontSize="24"
-        horizontalAlign="center"
+    <!-- Spinner wrapper, centered, hidden after load -->
+    <brls:Box
+        id="loading_spinner"
         width="auto"
         height="auto"
-        marginTop="30px"/>
+        axis="column"
+        grow="1.0"
+        justifyContent="center"
+        alignItems="center">
 
-    <brls:Label
-        id="smm_desc"
-        text=""
-        fontSize="15"
-        margin="30px"/>
+        <brls:ProgressSpinner
+            width="240"
+            height="240"/>
 
-    <brls:RadioCell
-        height="auto"
+    </brls:Box>
+
+    <brls:RecyclerFrame
+        id="recycler"
         width="auto"
-        id="smm_button"
-        margin="30px"/>
+        height="auto"
+        grow="1.0"
+        visibility="gone"
+        marginTop="20"/>
 
 </brls:Box>

@@ -1,132 +1,158 @@
 #include "views/installation_view.hpp"
+#include "views/mods_list.hpp"
+#include "api/game.hpp"
 #include "api/net.hpp"
-#include "utils/progress_event.hpp"
-#include "utils/config.hpp" 
+#include "utils/config.hpp"
 
-#include <filesystem>
-#include <switch.h>
+#include <borealis.hpp>
 
 using namespace brls::literals;
 
-InstallationView::InstallationView() {
+// ─────────────────────────────────────────────
+// TitleCell
+// ─────────────────────────────────────────────
+
+TitleCell::TitleCell()
+{
+    this->inflateFromXMLRes("xml/cells/title_cell.xml");
+}
+
+TitleCell* TitleCell::create()
+{
+    return new TitleCell();
+}
+
+// ─────────────────────────────────────────────
+// TitleData
+// ─────────────────────────────────────────────
+
+brls::RecyclerCell* TitleData::cellForRow(brls::RecyclerFrame* recycler, brls::IndexPath indexPath)
+{
+    auto cell = (TitleCell*)recycler->dequeueReusableCell("TitleCell");
+    if (cell && cell->titleLabel && indexPath.row < (int)titles.size()) {
+        cell->titleLabel->setText(titles[indexPath.row].first);
+        brls::Logger::debug("Set title for cell {}: {}", indexPath.row, titles[indexPath.row].first);
+    } else {
+        brls::Logger::error("Failed to set up cell: row={}, size={}", indexPath.row, titles.size());
+    }
+    return cell;
+}
+
+void TitleData::didSelectRowAt(brls::RecyclerFrame* recycler, brls::IndexPath indexPath)
+{
+    const auto& [name, titleId] = titles[indexPath.row];
+    brls::Logger::debug("Selected title: {} ({})", name, titleId);
+    Game game(name, titleId);
+    recycler->present(new ModListTab(game, true));
+}
+
+int TitleData::numberOfSections(brls::RecyclerFrame* recycler) { return 1; }
+
+int TitleData::numberOfRows(brls::RecyclerFrame* recycler, int section)
+{
+    return (int)titles.size();
+}
+
+std::string TitleData::titleForHeader(brls::RecyclerFrame* recycler, int section) { return ""; }
+
+TitleData::TitleData(const std::vector<std::pair<std::string, std::string>>& preloadedTitles)
+{
+    this->titles = preloadedTitles;
+}
+
+// ─────────────────────────────────────────────
+// InstallationView
+// ─────────────────────────────────────────────
+
+static bool s_titlesLoaded = false;
+static std::vector<std::pair<std::string, std::string>> s_cachedTitles; // (name, title_id)
+
+InstallationView::InstallationView()
+{
     this->inflateFromXMLRes("xml/tabs/installation_tab.xml");
 
-    smm_desc->setText("menu/label/desc_install"_i18n);
+    recycler->estimatedRowHeight = 50;
+    recycler->registerCell("TitleCell", []() { return TitleCell::create(); });
 
-    smm_radio->setSelected(false);
-
-    std::array<std::filesystem::path, 2> smm_nro_path = {
-        "sdmc:/switch/SimpleModManager.nro",
-        "sdmc:/switch/SimpleModManager/SimpleModManager.nro"
-    };
-    
-    std::string smm_path;
-    for (const auto& path : smm_nro_path) {
-        if (std::filesystem::exists(path)) {
-            smm_path = path.string();
-            break;
-        }
+    if (s_titlesLoaded) {
+        loading_spinner->setVisibility(brls::Visibility::GONE);
+        titleData = new TitleData(s_cachedTitles);
+        recycler->setDataSource(titleData, false);
+        recycler->setVisibility(brls::Visibility::VISIBLE);
+        brls::Logger::debug("InstallationView: using cached {} title(s)", s_cachedTitles.size());
+        return;
     }
 
-    #ifndef NDEBUG
+    loading_spinner->setVisibility(brls::Visibility::VISIBLE);
+    recycler->setVisibility(brls::Visibility::GONE);
+
+    // Capture alive flag and raw pointer — aliveFlag gates whether self is safe to use
+    std::shared_ptr<bool> aliveFlag = this->alive;
+    InstallationView* self = this;
+
+    brls::async([aliveFlag, self]() {
+        std::vector<std::pair<std::string, std::string>> loadedTitles;
+
+        try {
+            brls::Logger::debug("Fetching titles from API");
+            auto response = net::downloadRequest("https://swuk.com.ua/wp-json/custom-api/v1/titles");
+
+            auto parseTitles = [&](const nlohmann::json& arr) {
+                for (const auto& item : arr) {
+                    if (item.contains("name") && item["name"].is_string() &&
+                        item.contains("title_id") && item["title_id"].is_string()) {
+                        std::string name    = item["name"].get<std::string>();
+                        std::string titleId = item["title_id"].get<std::string>();
+                        if (!name.empty() && !titleId.empty())
+                            loadedTitles.emplace_back(name, titleId);
+                    }
+                }
+            };
+
+            if (response.is_array())
+                parseTitles(response);
+            else if (response.contains("data") && response["data"].is_array())
+                parseTitles(response["data"]);
+
+            std::sort(loadedTitles.begin(), loadedTitles.end(), [](const auto& a, const auto& b) {
+                return a.first < b.first;
+            });
+            brls::Logger::debug("Found {} titles after filtering", loadedTitles.size());
+
+        } catch (const std::exception& e) {
+            brls::Logger::error("InstallationView: fetch failed: {}", e.what());
+        }
+
+        brls::sync([aliveFlag, loadedTitles, self]() {
+            s_cachedTitles = loadedTitles;
+            s_titlesLoaded = true;
+
+            // View was destroyed while loading — cache is saved, skip UI update
+            if (!*aliveFlag) {
+                brls::Logger::debug("InstallationView: view gone, cache stored for next visit");
+                return;
+            }
+
+            self->loading_spinner->setVisibility(brls::Visibility::GONE);
+            self->titleData = new TitleData(s_cachedTitles);
+            self->recycler->setDataSource(self->titleData, false);
+            self->recycler->setVisibility(brls::Visibility::VISIBLE);
+
+            brls::Logger::debug("InstallationView: loaded {} title(s)", s_cachedTitles.size());
+        });
+    });
+
+#ifndef NDEBUG
     cfg::Config config;
     if (config.getWireframe()) {
         this->setWireframeEnabled(true);
-        for(auto& view : this->getChildren()) {
+        for (auto& view : this->getChildren())
             view->setWireframeEnabled(true);
-        }
     }
-    #endif
-
-    if(!smm_path.empty()) {
-        smm_radio->title->setText("menu/item/launch_smm"_i18n);
-        smm_radio->registerClickAction([this, smm_path = std::move(smm_path)](brls::View* view) {
-            brls::Logger::debug("Launching SimpleModManager, path: {}", smm_path);
-            envSetNextLoad(smm_path.c_str(), fmt::format("\"{}\"", smm_path).c_str());
-            brls::Application::quit();
-            return true;
-        });
-    } 
-    else {
-        smm_radio->title->setText("menu/item/download_smm"_i18n);
-        smm_radio->registerClickAction([this](brls::View* view) {
-            brls::sync([this]{getAppletFrame()->setActionsAvailable(false);});
-            downloadThread = std::thread(&InstallationView::downloadSmm, this);
-            progressThread = std::thread(&InstallationView::progressDownload, this);
-            return true;
-        });
-    }
+#endif
 }
 
-void InstallationView::downloadSmm() {
-    {
-        std::unique_lock<std::mutex> lock(threadMutex);
-    }
-    const std::string SimpleModManager_URL = "https://github.com/nadrino/SimpleModManager/releases/latest/download/SimpleModManager.nro";
-    net::downloadFile(SimpleModManager_URL, "sdmc:/switch/SimpleModManager.nro");
-    downloadFinished = true;
-}
-
-void InstallationView::progressDownload() {
-    {
-        std::unique_lock<std::mutex> lock(threadMutex);
-    }
-    {
-        ASYNC_RETAIN
-        brls::sync([ASYNC_TOKEN]() {
-            ASYNC_RELEASE
-            this->smm_progressBar = new brls::Slider();
-            this->smm_progressBar->hidePointer();
-            this->smm_progressBar->getPointer()->setFocusable(false);
-            this->smm_progressBar->setProgress(0);
-            this->smm_progressBar->setWidth(800);
-            this->smm_progressBar->setHeight(20);
-            this->smm_percent = new brls::Label();
-            this->smm_percent->setText(fmt::format("{}%", 0));
-            this->addView(this->smm_progressBar);
-            this->addView(this->smm_percent);
-        });
-    }
-    while(ProgressEvent::instance().getTotal() == 0) {
-        if(downloadFinished)
-            break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-
-    while(ProgressEvent::instance().getNow() < ProgressEvent::instance().getTotal() || !downloadFinished) {
-        ASYNC_RETAIN
-        brls::sync([ASYNC_TOKEN](){
-            ASYNC_RELEASE
-            smm_progressBar->setProgress(ProgressEvent::instance().getNow() / ProgressEvent::instance().getTotal());
-            smm_percent->setText(fmt::format("{}%", (int)((ProgressEvent::instance().getNow() * 100) / ProgressEvent::instance().getTotal())));
-        });
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-    ASYNC_RETAIN
-    brls::sync([ASYNC_TOKEN](){
-        ASYNC_RELEASE
-        this->removeView(smm_progressBar);
-        this->removeView(smm_percent);
-
-        if(!std::filesystem::exists("sdmc:/switch/SimpleModManager.nro")) {
-            this->smm_radio->title->setText("menu/item/download_smm"_i18n);
-            this->smm_radio->registerClickAction([this](brls::View* view) {
-                brls::sync([this]{getAppletFrame()->setActionsAvailable(false);});
-                downloadThread = std::thread(&InstallationView::downloadSmm, this);
-                progressThread = std::thread(&InstallationView::progressDownload, this);
-                return true;
-            });
-        }
-        else {
-            this->smm_radio->title->setText("menu/item/launch_smm"_i18n);
-            this->smm_radio->registerClickAction([this](brls::View* view) {
-                envSetNextLoad("sdmc:/switch/SimpleModManager.nro", "\"sdmc:/switch/SimpleModManager.nro\"");
-                brls::Application::quit();
-                return true;
-            });
-        }
-        brls::Application::giveFocus(this->smm_radio);
-        getAppletFrame()->setActionsAvailable(true);
-    });
-    
+InstallationView::~InstallationView()
+{
+    *alive = false;
 }

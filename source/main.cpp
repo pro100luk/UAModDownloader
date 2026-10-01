@@ -18,21 +18,22 @@ int main(int argc, char* argv[]) {
     
     brls::Logger::setLogLevel(brls::LogLevel::LOG_DEBUG);
 
-    std::filesystem::create_directories("sdmc:/config/SimpleModDownloader");
+    std::filesystem::create_directories("sdmc:/config/UAModDownloader");
 
     #ifdef NDEBUG //release
         // Using FILE* because brls::Logger::setLogOutput only takes FILE*, not std::ofstream
-        FILE* logFile = fopen("sdmc:/config/SimpleModDownloader/log.log", "w");
+        FILE* logFile = fopen("sdmc:/config/UAModDownloader/log.log", "w");
+        setvbuf(logFile, nullptr, _IONBF, 0); // unbuffered — every log line written immediately
         brls::Logger::setLogOutput(logFile);
     #endif
 
 
     {
         cfg::Config config;
-        if(config.getAppLanguage() != "auto") {
-            brls::Platform::APP_LOCALE_DEFAULT = config.getAppLanguage();
-            brls::Logger::debug("Loaded translations for language {}", config.getAppLanguage());
-        }
+        // if(config.getAppLanguage() != "auto") {
+        brls::Platform::APP_LOCALE_DEFAULT = "en-US";
+        brls::Logger::debug("Using English (en-US) language");
+        // }
     }
 
     if(!brls::Application::init()) {
@@ -58,7 +59,7 @@ int main(int argc, char* argv[]) {
     // Add custom values to the style
     brls::getStyle().addMetric("about/padding_top_bottom", 50);
     brls::getStyle().addMetric("about/padding_sides", 75);
-    brls::getStyle().addMetric("about/description_margin", 50);
+    brls::getStyle().addMetric("about/description_margin", 30);
 
     brls::Application::pushActivity(new MainActivity());
 

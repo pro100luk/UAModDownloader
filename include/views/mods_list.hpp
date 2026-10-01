@@ -34,10 +34,10 @@ class CategorieCell : public brls::RecyclerCell
     static CategorieCell* create();
 };
 
-class ModData : public brls::RecyclerDataSource 
+class ModData : public brls::RecyclerDataSource
 {
 public:
-    ModData(Game game);
+    ModData(Game game, bool readOnly = false);
 
     int numberOfSections(brls::RecyclerFrame* recycler) override;
     int numberOfRows(brls::RecyclerFrame* recycler, int section) override;
@@ -50,12 +50,12 @@ private:
     Game& game;
     std::unique_ptr<ModList> modList;
     std::vector<unsigned char> bannerBuffer;
-    //ModList* modList;
+    bool readOnly;
 };
 
 class ModListTab : public brls::Box {
 public:
-    ModListTab(Game& game);
+    ModListTab(Game& game, bool readOnly = false);
     ModListTab();
 
     //static brls::View* create();

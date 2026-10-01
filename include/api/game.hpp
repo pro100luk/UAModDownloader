@@ -22,9 +22,9 @@ class Game {
         Game(const std::string& title, const std::string& tid);
         Game() {}
         
-        std::string getTitle() { return title; }
+        std::string getTitle() const { return title; }
         int getGamebananaID() { return gamebananaID; }
-        std::string getTid() { return tid; }
+        std::string getTid() const { return tid; }
         brls::Image* getIcon() { return icon; }
         std::string getBannerUrl() { return bannerURL; }
         std::vector<Category> getCategories() { return categories; }
